@@ -250,11 +250,14 @@ function onCondPopoverBlur(e: FocusEvent): void {
             v-for="(col, idx) in columns"
             :key="`${col.EntityName}::${col.ColName}::${idx}`"
             class="pill"
+            :class="{ 'pill--aggregate': col.Aggregate }"
+            :data-tooltip="`${col.ColName} · ${col.DataType}${isMultiEntity ? ' · ' + col.EntityName : ''}${col.Aggregate ? ' · Σ ' + col.Aggregate : ''}`"
           >
             <span class="pill-drag" title="Drag to reorder">&#8286;</span>
-            <input v-model="col.DisplayName" class="pill-label" :title="col.ColName" />
+            <input v-model="col.DisplayName" class="pill-label" />
             <span v-if="isMultiEntity" class="pill-entity">{{ col.EntityName }}</span>
             <span class="pill-type" :title="col.DataType">{{ col.DataType[0] }}</span>
+            <span v-if="col.Aggregate" class="pill-agg" :title="'Aggregate: ' + col.Aggregate">Σ</span>
             <button class="pill-remove" type="button" title="Remove" @click="removeColumn(idx)">&times;</button>
           </div>
         </VueDraggable>
@@ -568,6 +571,51 @@ function onCondPopoverBlur(e: FocusEvent): void {
   flex-shrink: 0;
 }
 .pill-remove:hover { color: #f56c6c; }
+
+/* Aggregate variant */
+.pill--aggregate {
+  border-color: rgba(230, 162, 60, 0.45);
+  background: #fffbf0;
+}
+.pill--aggregate:hover { border-color: rgba(230, 162, 60, 0.7); }
+.pill-agg {
+  font-size: 10px;
+  font-weight: 700;
+  color: #d48806;
+  background: rgba(230, 162, 60, 0.12);
+  border-radius: 999px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Rich CSS tooltip */
+.pill[data-tooltip] {
+  position: relative;
+}
+.pill[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1d2329;
+  color: #e8eaed;
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 1.5;
+  white-space: nowrap;
+  padding: 5px 9px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 300;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+.pill[data-tooltip]:hover::after {
+  opacity: 1;
+}
 
 /* AI loading / suggestions strip */
 .tcp-ai-loading {

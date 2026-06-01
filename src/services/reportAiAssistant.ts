@@ -246,6 +246,7 @@ export interface AskResult {
   sqlQuerySources?: string[] | null
   sqlQueryAggregations?: string[] | null
   queryResult?: Array<Record<string, unknown>> | null
+  chartConfig?: Record<string, unknown> | null
   // Template fields
   totalMatches?: number | null
   matches?: TemplateMatch[] | null
@@ -270,6 +271,10 @@ type AskRespPayload = {
       sqlQuerySources?: string[]
       sqlQueryAggregations?: string[]
     }
+    visualization?: {
+      chartConfig?: Record<string, unknown>
+      chartType?: string
+    } | null
   }
 }
 
@@ -304,6 +309,7 @@ function parseAskPayload(data: AskRespPayload): AskResult {
     sqlQuerySources: content.sql?.sqlQuerySources ?? null,
     sqlQueryAggregations: content.sql?.sqlQueryAggregations ?? null,
     queryResult: Array.isArray(content.data) ? content.data : null,
+    chartConfig: content.visualization?.chartConfig ?? null,
   }
 }
 

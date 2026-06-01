@@ -33,6 +33,7 @@ interface ChatMessage {
   sqlQuerySources?: string[] | null
   sqlQueryAggregations?: string[] | null
   queryResult?: Array<Record<string, unknown>> | null
+  chartConfig?: Record<string, unknown> | null
   // Template match fields
   templateMatches?: TemplateMatch[] | null
   totalMatches?: number | null
@@ -201,6 +202,7 @@ const sendMessage = async (overridePrompt?: string) => {
         sqlQuerySources: result.sqlQuerySources,
         sqlQueryAggregations: result.sqlQueryAggregations,
         queryResult: result.queryResult,
+        chartConfig: result.chartConfig ?? null,
         metadata: result.metadata,
         activeTab: defaultSqlTab(partial),
       }
@@ -309,7 +311,8 @@ onMounted(() => void initializeChat())
                   msg.mode === 'sql' &&
                   ((msg.queryResult && msg.queryResult.length > 0) ||
                     msg.sqlQueryReasoning ||
-                    msg.sqlQuery)
+                    msg.sqlQuery ||
+                    msg.chartConfig)
                 "
                 v-model="msg.activeTab"
                 type="border-card"
@@ -344,6 +347,10 @@ onMounted(() => void initializeChat())
 
                 <el-tab-pane v-if="msg.sqlQuery" label="SQL" name="sql">
                   <pre class="cv-sql-code">{{ msg.sqlQuery }}</pre>
+                </el-tab-pane>
+
+                <el-tab-pane v-if="msg.chartConfig" label="Chart Config" name="chart">
+                  <pre class="cv-sql-code cv-chart-config">{{ JSON.stringify(msg.chartConfig, null, 2) }}</pre>
                 </el-tab-pane>
               </el-tabs>
 
@@ -604,6 +611,11 @@ onMounted(() => void initializeChat())
   background: #f7f8fb;
   border-radius: 6px;
   color: #303133;
+}
+
+.cv-chart-config {
+  background: #fefbf2;
+  border: 1px solid rgba(230, 162, 60, 0.2);
 }
 
 /* ── Metadata ────────────────────────────────── */
