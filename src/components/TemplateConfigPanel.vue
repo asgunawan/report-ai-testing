@@ -27,8 +27,17 @@ const conditions = ref<TemplatePostCondition[]>([])
 const availableColumns = ref<EntityColumnOption[]>([])
 
 const isRecommending = ref(false)
-const aiColSuggestions = ref<EntityColumnOption[]>([])
-const aiCondSuggestions = ref<EntityColumnOption[]>([])
+const _aiColSuggestionsSource = ref<EntityColumnOption[]>([])
+const _aiCondSuggestionsSource = ref<EntityColumnOption[]>([])
+
+const aiColSuggestions = computed(() => {
+  const existing = new Set(columns.value.map((c) => `${c.EntityName}::${c.ColName}`))
+  return _aiColSuggestionsSource.value.filter((c) => !existing.has(`${c.entityName}::${c.colName}`))
+})
+const aiCondSuggestions = computed(() => {
+  const existing = new Set(conditions.value.map((c) => `${c.EntityName}::${c.ColName}`))
+  return _aiCondSuggestionsSource.value.filter((c) => !existing.has(`${c.entityName}::${c.colName}`))
+})
 
 const showColPopover = ref(false)
 const colSearch = ref('')
@@ -94,9 +103,6 @@ function addColumnFromOption(col: EntityColumnOption): void {
 }
 function addAiColumn(col: EntityColumnOption): void {
   addColumnFromOption(col)
-  aiColSuggestions.value = aiColSuggestions.value.filter(
-    (c) => !(c.colName === col.colName && c.entityName === col.entityName),
-  )
 }
 
 // ── Condition actions ─────────────────────────────────────────────────────
@@ -118,9 +124,6 @@ function addConditionFromCol(col: EntityColumnOption): void {
 }
 function addAiCondition(col: EntityColumnOption): void {
   addConditionFromCol(col)
-  aiCondSuggestions.value = aiCondSuggestions.value.filter(
-    (c) => !(c.colName === col.colName && c.entityName === col.entityName),
-  )
 }
 function onConditionColChange(condition: TemplatePostCondition, key: string): void {
   const separatorIdx = key.indexOf('::')
@@ -164,8 +167,8 @@ async function fireRecommendations(loaded: TemplateDefinition, entityNames: stri
       loaded.mainEntity.dbName,
       loaded.columns.map((c) => c.ColName),
     )
-    aiColSuggestions.value = result.columns
-    aiCondSuggestions.value = result.conditionColumns
+    _aiColSuggestionsSource.value = result.columns
+    _aiCondSuggestionsSource.value = result.conditionColumns
   } catch {
     // silent — suggestions are best-effort
   } finally {
@@ -219,13 +222,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
       <button class="tcp-back" type="button" @click="emit('close')">&larr; Back</button>
       <div class="tcp-title-wrap">
         <div class="tcp-title">{{ match.templateName }}</div>
-        <div v-if="template" class="tcp-subtitle">
-          <template v-if="isMultiEntity">
-            Cross-module &mdash;
-            <span v-for="(e, i) in entityList" :key="e"><span v-if="i > 0">, </span>{{ e }}</span>
-          </template>
-          <template v-else>{{ template.mainEntity.entityName }}</template>
-        </div>
+        <div v-if="match.description" class="tcp-subtitle">{{ match.description }}</div>
       </div>
     </div>
 

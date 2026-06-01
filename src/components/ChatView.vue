@@ -163,7 +163,10 @@ const sendMessage = async (overridePrompt?: string) => {
     const idx = messages.value.findIndex((m) => m.id === loadingId)
     if (idx === -1) return
 
-    const result: AskResult = await askAssistant(prompt, sessionId.value)
+    const result: AskResult = await askAssistant(prompt, sessionId.value, 5, (msg) => {
+      const i = messages.value.findIndex((m) => m.id === loadingId)
+      if (i !== -1) messages.value[i] = { ...messages.value[i], loadingHint: msg }
+    })
 
     if (result.mode === 'template' || result.mode === 'list_templates') {
       messages.value[idx] = {
@@ -278,7 +281,7 @@ onMounted(() => void initializeChat())
             <!-- Loading -->
             <div v-if="msg.isLoading" class="cv-loading">
               <div class="cv-spinner small"></div>
-              <span>Processing…</span>
+              <span>{{ (msg as any).loadingHint ?? 'Processing…' }}</span>
             </div>
 
             <!-- Assistant message -->

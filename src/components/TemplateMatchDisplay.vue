@@ -50,6 +50,10 @@ const emit = defineEmits<{
             <span class="tmd-pct">{{ match.similarityPercent }}%</span>
           </div>
 
+          <p v-if="match.description" class="tmd-description">
+            {{ match.description }}
+          </p>
+
           <div class="tmd-meta-row">
             <span class="tmd-label">Matched question:</span>
             <span class="tmd-matched-q">{{ match.matchedQuestion }}</span>
@@ -212,6 +216,13 @@ const emit = defineEmits<{
   color: #606266;
   min-width: 46px;
   text-align: right;
+}
+
+.tmd-description {
+  margin: 6px 0 10px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #5c626e;
 }
 
 .tmd-meta-row {

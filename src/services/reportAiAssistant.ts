@@ -14,6 +14,7 @@ export interface TemplateMatch {
   templateId: string
   templateName: string
   xmlPath: string
+  description?: string
   matchedQuestion: string
   similarity: number
   similarityPercent: number
@@ -252,38 +253,27 @@ export interface AskResult {
   metadata: { processingTime?: number; modelUsed?: string; fromCache?: boolean } | null
 }
 
-export async function askAssistant(
-  query: string,
-  sessionId: string,
-  limit = 5,
-): Promise<AskResult> {
-  type Resp = {
-    mode?: string
-    timestamp?: string
-    suggestions?: string[]
-    content?: {
-      message?: string
-      data?:
-        | { totalMatches?: number; matches?: TemplateMatch[] }
-        | Array<Record<string, unknown>>
-        | null
-      metadata?: { processingTime?: number; modelUsed?: string; fromCache?: boolean }
-      sql?: {
-        sqlQuery?: string
-        sqlQueryReasoning?: string
-        sqlQuerySources?: string[]
-        sqlQueryAggregations?: string[]
-      }
+type AskRespPayload = {
+  mode?: string
+  timestamp?: string
+  suggestions?: string[]
+  content?: {
+    message?: string
+    data?:
+      | { totalMatches?: number; matches?: TemplateMatch[] }
+      | Array<Record<string, unknown>>
+      | null
+    metadata?: { processingTime?: number; modelUsed?: string; fromCache?: boolean }
+    sql?: {
+      sqlQuery?: string
+      sqlQueryReasoning?: string
+      sqlQuerySources?: string[]
+      sqlQueryAggregations?: string[]
     }
   }
+}
 
-  const response = await fetch(buildUrl('/report/ai/api/analytics/ask'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, sessionId, limit }),
-  })
-  const data = await parseJsonResponse<Resp>(response)
-
+function parseAskPayload(data: AskRespPayload): AskResult {
   const rawMode = data.mode
   const mode: DetectedMode =
     rawMode === 'template' ? 'template'
@@ -315,6 +305,70 @@ export async function askAssistant(
     sqlQueryAggregations: content.sql?.sqlQueryAggregations ?? null,
     queryResult: Array.isArray(content.data) ? content.data : null,
   }
+}
+
+export async function askAssistant(
+  query: string,
+  sessionId: string,
+  limit = 5,
+  onProgress?: (message: string) => void,
+): Promise<AskResult> {
+  const response = await fetch(buildUrl('/report/ai/api/analytics/ask'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, sessionId, limit }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`)
+  }
+
+  // The backend streams SSE events: 'progress', 'result', 'timeout', 'error'
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let pendingEvent = 'message'
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        pendingEvent = line.slice(7).trim()
+      } else if (line.startsWith('data: ')) {
+        const raw = line.slice(6)
+        let data: Record<string, unknown>
+        try {
+          data = JSON.parse(raw)
+        } catch {
+          pendingEvent = 'message'
+          continue
+        }
+
+        if (pendingEvent === 'progress') {
+          onProgress?.(data.message as string)
+        } else if (pendingEvent === 'result') {
+          reader.cancel()
+          return parseAskPayload(data as AskRespPayload)
+        } else if (pendingEvent === 'timeout') {
+          reader.cancel()
+          throw new Error((data.error as string) ?? 'Query timed out')
+        } else if (pendingEvent === 'error') {
+          reader.cancel()
+          throw new Error((data.error as string) ?? (data.message as string) ?? 'Unknown error')
+        }
+
+        pendingEvent = 'message'
+      }
+    }
+  }
+
+  throw new Error('Stream ended without a result')
 }
 
 export async function matchReportTemplates(
