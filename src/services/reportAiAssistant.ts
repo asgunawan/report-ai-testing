@@ -62,8 +62,10 @@ export interface TemplateDefinition {
 
 export interface EntityColumnOption {
   colName: string
+  displayName?: string
   dataType: 'String' | 'Number' | 'DateTime'
   entityName: string
+  entityDisplayName?: string
 }
 
 export const COMPARATORS_BY_TYPE: Record<'String' | 'Number' | 'DateTime', string[]> = {

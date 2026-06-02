@@ -55,21 +55,43 @@ const addableColumns = computed(() => {
 
 const filteredAddable = computed(() => {
   const q = colSearch.value.toLowerCase()
-  return q ? addableColumns.value.filter((c) => c.colName.toLowerCase().includes(q)) : addableColumns.value
+  return q
+    ? addableColumns.value.filter((c) => {
+      const label = (c.displayName ?? c.colName).toLowerCase()
+      return c.colName.toLowerCase().includes(q) || label.includes(q)
+    })
+    : addableColumns.value
 })
 
 const filteredConditionColumns = computed(() => {
   const q = condSearch.value.toLowerCase()
-  return q ? availableColumns.value.filter((c) => c.colName.toLowerCase().includes(q)) : availableColumns.value
+  return q
+    ? availableColumns.value.filter((c) => {
+      const label = (c.displayName ?? c.colName).toLowerCase()
+      return c.colName.toLowerCase().includes(q) || label.includes(q)
+    })
+    : availableColumns.value
 })
 
-function groupByEntity(cols: EntityColumnOption[]): { entity: string; cols: EntityColumnOption[] }[] {
+function getColumnLabel(col: EntityColumnOption): string {
+  return (col.displayName ?? '').trim() || col.colName
+}
+
+function getEntityLabel(col: EntityColumnOption): string {
+  return (col.entityDisplayName ?? '').trim() || col.entityName
+}
+
+function groupByEntity(cols: EntityColumnOption[]): { entity: string; label: string; cols: EntityColumnOption[] }[] {
   const map = new Map<string, EntityColumnOption[]>()
   for (const col of cols) {
     if (!map.has(col.entityName)) map.set(col.entityName, [])
     map.get(col.entityName)!.push(col)
   }
-  return [...map.entries()].map(([entity, c]) => ({ entity, cols: c }))
+  return [...map.entries()].map(([entity, c]) => ({
+    entity,
+    label: getEntityLabel(c[0]),
+    cols: c,
+  }))
 }
 
 const noValueComparators = new Set([
@@ -97,7 +119,7 @@ function addColumnFromOption(col: EntityColumnOption): void {
     ColName: col.colName,
     DataType: col.dataType,
     Seq: columns.value.length + 1,
-    DisplayName: col.colName,
+    DisplayName: getColumnLabel(col),
   })
   reindex()
 }
@@ -276,7 +298,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
             class="sugg-pill"
             @click="addAiColumn(col)"
           >
-            + {{ col.colName }}<span v-if="isMultiEntity" class="sugg-entity">&nbsp;{{ col.entityName }}</span>
+            + {{ getColumnLabel(col) }}<span v-if="isMultiEntity" class="sugg-entity">&nbsp;{{ getEntityLabel(col) }}</span>
           </button>
         </div>
 
@@ -295,7 +317,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
             <div class="tcp-pop-list">
               <div v-if="filteredAddable.length === 0" class="tcp-pop-empty">No more columns available</div>
               <template v-for="group in groupByEntity(filteredAddable)" :key="group.entity">
-                <div v-if="isMultiEntity" class="tcp-pop-group">{{ group.entity }}</div>
+                <div v-if="isMultiEntity" class="tcp-pop-group">{{ group.label }}</div>
                 <button
                   v-for="col in group.cols"
                   :key="`${col.entityName}::${col.colName}`"
@@ -303,7 +325,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
                   class="tcp-pop-item"
                   @click="addColumnFromOption(col); showColPopover = false; colSearch = ''"
                 >
-                  <span class="pop-col-name">{{ col.colName }}</span>
+                  <span class="pop-col-name">{{ getColumnLabel(col) }}</span>
                   <span class="pop-col-type">{{ col.dataType }}</span>
                 </button>
               </template>
@@ -336,19 +358,19 @@ function onCondPopoverBlur(e: FocusEvent): void {
             @change="onConditionColChange(cond, ($event.target as HTMLSelectElement).value)"
           >
             <template v-for="group in groupByEntity(availableColumns)" :key="group.entity">
-              <optgroup v-if="isMultiEntity" :label="group.entity">
+              <optgroup v-if="isMultiEntity" :label="group.label">
                 <option
                   v-for="col in group.cols"
                   :key="`${col.entityName}::${col.colName}`"
                   :value="`${col.entityName}::${col.colName}`"
-                >{{ col.colName }}</option>
+                >{{ getColumnLabel(col) }}</option>
               </optgroup>
               <template v-else>
                 <option
                   v-for="col in group.cols"
                   :key="`${col.entityName}::${col.colName}`"
                   :value="`${col.entityName}::${col.colName}`"
-                >{{ col.colName }}</option>
+                >{{ getColumnLabel(col) }}</option>
               </template>
             </template>
           </select>
@@ -390,7 +412,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
             class="sugg-pill cond-sugg"
             @click="addAiCondition(col)"
           >
-            + {{ col.colName }}<span v-if="isMultiEntity" class="sugg-entity">&nbsp;{{ col.entityName }}</span>
+            + {{ getColumnLabel(col) }}<span v-if="isMultiEntity" class="sugg-entity">&nbsp;{{ getEntityLabel(col) }}</span>
           </button>
         </div>
 
@@ -409,7 +431,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
             <div class="tcp-pop-list">
               <div v-if="filteredConditionColumns.length === 0" class="tcp-pop-empty">No columns found</div>
               <template v-for="group in groupByEntity(filteredConditionColumns)" :key="group.entity">
-                <div v-if="isMultiEntity" class="tcp-pop-group">{{ group.entity }}</div>
+                <div v-if="isMultiEntity" class="tcp-pop-group">{{ group.label }}</div>
                 <button
                   v-for="col in group.cols"
                   :key="`${col.entityName}::${col.colName}`"
@@ -417,7 +439,7 @@ function onCondPopoverBlur(e: FocusEvent): void {
                   class="tcp-pop-item"
                   @click="addConditionFromCol(col)"
                 >
-                  <span class="pop-col-name">{{ col.colName }}</span>
+                  <span class="pop-col-name">{{ getColumnLabel(col) }}</span>
                   <span class="pop-col-type">{{ col.dataType }}</span>
                 </button>
               </template>
