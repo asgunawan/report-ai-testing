@@ -25,6 +25,7 @@ interface ChatMessage {
   timestamp: string
   suggestions?: string[]
   isLoading?: boolean
+  loadingHint?: string
   isWelcomeMessage?: boolean
   mode?: ChatMode
   // SQL fields
@@ -283,7 +284,7 @@ onMounted(() => void initializeChat())
             <!-- Loading -->
             <div v-if="msg.isLoading" class="cv-loading">
               <div class="cv-spinner small"></div>
-              <span>{{ (msg as any).loadingHint ?? 'Processing…' }}</span>
+              <span>{{ msg.loadingHint ?? 'Processing…' }}</span>
             </div>
 
             <!-- Assistant message -->
