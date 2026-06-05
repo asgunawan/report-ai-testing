@@ -1,11 +1,31 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { TemplateMatch } from '../services/reportAiAssistant'
 
-defineProps<{
+const props = defineProps<{
   matches: TemplateMatch[]
   totalMatches: number
   displayMode?: 'recommendation' | 'catalogue'
 }>()
+
+const similarityCutoff = 55
+const maxShown = 3
+
+const visibleMatches = computed(() => {
+  if (props.displayMode === 'catalogue') return props.matches
+
+  const filtered = props.matches.filter((match) => {
+    const pct = Number(match.similarityPercent)
+    return Number.isFinite(pct) && pct >= similarityCutoff
+  })
+
+  return filtered.slice(0, maxShown)
+})
+
+const visibleTotal = computed(() => {
+  if (props.displayMode === 'catalogue') return props.totalMatches
+  return visibleMatches.value.length
+})
 
 const emit = defineEmits<{
   configure: [match: TemplateMatch]
@@ -16,16 +36,16 @@ const emit = defineEmits<{
   <!-- ── RECOMMENDATION MODE (similarity search result) ── -->
   <div v-if="displayMode !== 'catalogue'" class="tmd-root">
     <div class="tmd-header">
-      <span class="tmd-count">{{ totalMatches }} template match{{ totalMatches === 1 ? '' : 'es' }} found</span>
+      <span class="tmd-count">{{ visibleTotal }} template match{{ visibleTotal === 1 ? '' : 'es' }} found</span>
     </div>
 
-    <div v-if="matches.length === 0" class="tmd-empty">
+    <div v-if="visibleMatches.length === 0" class="tmd-empty">
       No templates matched above the similarity threshold. Try rephrasing your question.
     </div>
 
     <div v-else class="tmd-list">
       <div
-        v-for="(match, index) in matches"
+        v-for="(match, index) in visibleMatches"
         :key="match.templateId"
         class="tmd-card"
         :class="{ 'is-high-confidence': match.isHighConfidence }"
